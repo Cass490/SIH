@@ -1,0 +1,11 @@
+
+notebook
+scikit-learn
+xgboost
+geopy
+motor
+python-dotenv
+google-generativeai
+httpx
+requests
+

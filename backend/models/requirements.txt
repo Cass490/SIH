@@ -1,7 +1,0 @@
-
-notebook
-scikit-learn
-xgboost
-geopy
-motor
-python-dotenv

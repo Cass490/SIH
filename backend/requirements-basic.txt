@@ -1,0 +1,28 @@
+# Core FastAPI and web framework
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+
+# MongoDB
+motor
+pymongo
+
+# Authentication and Security
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+
+# Configuration and Environment
+python-dotenv
+
+# HTTP requests
+requests
+httpx
+
+# Utilities
+python-dateutil
+pytz
+
+# Data validation
+email-validator

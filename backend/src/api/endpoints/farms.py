@@ -6,12 +6,14 @@ from typing import List
 import json
 from bson import ObjectId
 from src.services import prediction_service, llm_service, weather_service, soilgrids_service 
-
+from pydantic import BaseModel 
 # BSON ObjectId can't be directly used in FastAPI's JSON response, so we need a helper
 def serialize_doc(doc):
     doc["_id"] = str(doc["_id"])
     return doc
-
+class ChatMessage(BaseModel):
+    message: str
+    
 router = APIRouter()
 
 @router.post("/farms", response_model=FarmModel, tags=["Farms"])
@@ -118,3 +120,23 @@ async def get_farm_hub_data(
         "model_recommendation": recommendation,
         "final_analysis": final_analysis
     }
+@router.post("/farms/{farm_id}/chat", tags=["Farms"])
+async def handle_chat(
+    farm_id: str,
+    chat_message: ChatMessage = Body(...),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """
+    Handles a follow-up chat message from the user for a specific farm.
+    """
+    farm = await db["farms"].find_one({"_id": ObjectId(farm_id)})
+    if farm is None:
+        raise HTTPException(status_code=404, detail=f"Farm with id {farm_id} not found")
+
+    # Call our new LLM service function
+    response_text = llm_service.generate_chat_response(
+        farm_details=serialize_doc(farm),
+        user_message=chat_message.message
+    )
+    
+    return {"response": response_text}

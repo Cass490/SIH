@@ -1,0 +1,10 @@
+{
+    "dashboard_title": "My Farms",
+    "add_farm_button": "Add New Farm",
+    "loading_farms": "Loading your farms...",
+    "hub_title": "Farm Hub",
+    "loading_analysis": "Performing live analysis, please wait...",
+    "live_weather": "Live Weather",
+    "model_recommendation": "Our Model's Recommendation",
+    "final_analysis": "Your Personal Agri-Friend Analysis"
+  }

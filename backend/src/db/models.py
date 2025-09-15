@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field,conint, confloat 
 from typing import List
 
 # A helper class for GeoJSON format
@@ -8,10 +8,11 @@ class LocationModel(BaseModel):
 
 # A helper class for the nested soil properties
 class SoilPropertiesModel(BaseModel):
-    N: int
-    P: int
-    K: int
-    ph: float = Field(..., gt=0, lt=14) # Add validation: pH must be between 0 and 14
+    N: conint(gt=0)
+    P: conint(gt=0)
+    K: conint(gt=0)
+    # confloat = constrained float. gt=0, lt=14 means "between 0 and 14".
+    ph: confloat(gt=0, lt=14)
 
 # This is the model for CREATING a new farm (what the frontend will send)
 class CreateFarmModel(BaseModel):
@@ -30,3 +31,17 @@ class FarmModel(CreateFarmModel):
             # This is needed to handle the ObjectId type from Mongo if you were to use it
             'bson.objectid.ObjectId': str
         }
+
+
+# --- Add these new models for User Authentication ---
+class CreateUserModel(BaseModel):
+    name: str
+    phone: str
+    occupation: str
+    password: str
+
+class UserModel(CreateUserModel):
+    id: str = Field(alias="_id")
+
+    class Config:
+        populate_by_name = True

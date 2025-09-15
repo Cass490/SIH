@@ -5,7 +5,7 @@ from src.core.config import GEMINI_API_KEY
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Initialize the model
-llm = genai.GenerativeModel('gemini-pro')
+llm = genai.GenerativeModel('gemini-2.5-pro')
 
 def generate_conversational_response(xgboost_output: dict, farm_details: dict) -> str:
     """
@@ -45,3 +45,40 @@ def generate_conversational_response(xgboost_output: dict, farm_details: dict) -
     except Exception as e:
         print(f"Error communicating with Gemini API: {e}")
         return "Our AI advisor is currently unavailable, but our model recommends: " + best_crop
+    
+    # ... (existing imports and generate_conversational_response function)
+
+def generate_chat_response(farm_details: dict, user_message: str, chat_history: list = None) -> str:
+    """
+    Handles a conversational follow-up question from the user.
+    """
+    
+    # For a more advanced system, you would pass the whole chat history.
+    # For our prototype, we'll keep the prompt focused on the new question.
+    
+    prompt = f"""
+    You are an expert agricultural advisor named 'Agri-Friend'.
+    You are in a conversation with a farmer about their farm named '{farm_details['farm_name']}'.
+    
+    Here is some context about their farm based on our last analysis:
+    - Soil N: {farm_details['soil_properties']['N']}
+    - Soil P: {farm_details['soil_properties']['P']}
+    - Soil K: {farm_details['soil_properties']['K']}
+    - Soil pH: {farm_details['soil_properties']['ph']}
+    - Location: {farm_details['location']['coordinates']}
+    
+    The farmer's new question is: "{user_message}"
+    
+    Your task is to provide a helpful, concise, and simple answer to this specific question.
+    If the question is about a crop, provide actionable advice.
+    If the question is unrelated to farming, politely state that you can only help with agricultural topics.
+    
+    Generate the response now.
+    """
+    
+    try:
+        response = llm.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        print(f"Error communicating with Gemini API during chat: {e}")
+        return "I'm sorry, I'm having trouble connecting to my knowledge base right now. Please try again in a moment."

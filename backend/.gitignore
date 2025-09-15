@@ -1,8 +1,23 @@
-.env
-datasets
+# Python virtual environments
 venv/
 .venv/
+env/
+/env/
+/venv/
 
-# Python cache
+# Python cache files
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# Local environment files for the backend
+.env
+.env.*
+
+# Notebook checkpoint files
+.ipynb_checkpoints
+
+# Build and distribution artifacts
+/dist/
+/build/
+*.egg-info/

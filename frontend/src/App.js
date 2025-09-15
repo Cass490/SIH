@@ -12,6 +12,7 @@ import LoginPage from './pages/LoginPage';
 import CommodityPage from './pages/CommodityPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import LandingPage from './pages/LandingPage'; // <-- THE MISSING IMPORT
+import CommodityTrendsPage from './pages/CommodityTrendsPage'; 
 
 function App() {
   return (
@@ -37,7 +38,8 @@ function App() {
           <Route path="landing" element={<LandingPage />} />
           <Route path="farm/:farmId" element={<FarmHubPage />} />
           <Route path="add-farm" element={<AddFarmPage />} />
-          <Route path="trends" element={<CommodityPage />} />
+          <Route path="commodity-prices" element={<CommodityPage />} />
+          <Route path="market-trends" element={<CommodityTrendsPage />} />
         </Route>
 
         {/* --- Fallback Redirect --- */}

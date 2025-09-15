@@ -1,31 +1,45 @@
-from fastapi import APIRouter, Body, Depends, HTTPException
+# --- IMPORTS ---
+from fastapi import APIRouter, Body, Depends, HTTPException, UploadFile, File
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pydantic import BaseModel
+from typing import List
+from bson import ObjectId
+
+# Import your database client and models
 from src.db.mongo_client import get_database
 from src.db.models import CreateFarmModel, FarmModel
-from typing import List
-import json
-from bson import ObjectId
-from src.services import prediction_service, llm_service, weather_service, soilgrids_service 
-from pydantic import BaseModel 
-# BSON ObjectId can't be directly used in FastAPI's JSON response, so we need a helper
-def serialize_doc(doc):
-    doc["_id"] = str(doc["_id"])
-    return doc
+
+# Import all your services
+from src.services import prediction_service, llm_service, weather_service, soilgrids_service
+
+# --- Pydantic Models for this Endpoint ---
+
+# This is the NEW ChatMessage model that includes language
 class ChatMessage(BaseModel):
     message: str
-    
+    language: str = "en"  # Default to English
+
+# --- Helper Function ---
+
+# BSON ObjectId can't be directly used in FastAPI's JSON response, so we need a helper
+def serialize_doc(doc):
+    if doc and "_id" in doc:
+        doc["_id"] = str(doc["_id"])
+    return doc
+
+# --- API Router ---
+
 router = APIRouter()
+
+# --- FARM CRUD ENDPOINTS ---
 
 @router.post("/farms", response_model=FarmModel, tags=["Farms"])
 async def create_farm(
     farm: CreateFarmModel = Body(...),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
-    """
-    Creates a new farm in the database.
-    """
+    """Creates a new farm in the database."""
     farm_dict = farm.dict()
-    # MongoDB expects longitude first, then latitude in coordinates
     farm_dict["location"]["coordinates"] = [farm.location.coordinates[0], farm.location.coordinates[1]]
     
     new_farm = await db["farms"].insert_one(farm_dict)
@@ -33,36 +47,29 @@ async def create_farm(
     
     return serialize_doc(created_farm)
 
-
 @router.get("/farms", response_model=List[FarmModel], tags=["Farms"])
 async def get_all_farms_for_user(
-    user_id: str, # For now we pass user_id as a query parameter
+    user_id: str,
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
-    """
-    Retrieves all farms associated with a specific user_id.
-    """
+    """Retrieves all farms associated with a specific user_id."""
     farms = []
     cursor = db["farms"].find({"user_id": user_id})
     async for farm_doc in cursor:
         farms.append(serialize_doc(farm_doc))
     return farms
 
-
-# ... (imports at the top of the file)
-from src.services import prediction_service, llm_service, weather_service, soilgrids_service # <-- Add ALL services
-
-# ... (create_farm and get_all_farms_for_user functions are unchanged)
+# --- THE "MAGIC" HUB ENDPOINT ---
 
 @router.get("/farms/{farm_id}/hub", tags=["Farms"])
 async def get_farm_hub_data(
     farm_id: str,
+    lang: str = "en", # Default to English if not provided
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     The complete 'magic' endpoint. Fetches farm data, gets live weather,
     runs the ML model, and generates a personalized LLM response.
-    It uses stored soil data but can fall back to SoilGrids if needed.
     """
     farm = await db["farms"].find_one({"_id": ObjectId(farm_id)})
     if farm is None:
@@ -71,7 +78,7 @@ async def get_farm_hub_data(
     longitude = farm['location']['coordinates'][0]
     latitude = farm['location']['coordinates'][1]
 
-    # --- 1. GET LIVE WEATHER DATA ---
+    # 1. Get Live Weather Data
     raw_weather_data = await weather_service.get_weather_forecast(latitude, longitude)
     if not raw_weather_data:
         raise HTTPException(status_code=503, detail="Could not retrieve live weather data.")
@@ -80,37 +87,29 @@ async def get_farm_hub_data(
     if "error" in live_weather:
         raise HTTPException(status_code=500, detail=live_weather['error'])
 
-    # --- 2. GET SOIL DATA (User's Data is Priority) ---
+    # 2. Get Soil Data (with fallback)
     soil_properties = farm.get('soil_properties')
     data_source = "User Provided"
-
     if not soil_properties:
-        # **FALLBACK LOGIC**: If user didn't provide soil data, call SoilGrids.
-        print(f"No soil data for farm {farm_id}. Falling back to SoilGrids.")
         raw_soilgrids = await soilgrids_service.get_soilgrids_data(latitude, longitude)
         soil_properties = soilgrids_service.parse_soil_properties(raw_soilgrids)
         data_source = "SoilGrids Estimate"
-        # CRITICAL NOTE: The output from SoilGrids (e.g., N in cg/kg) might not match the units
-        # your XGBoost model was trained on. You MUST normalize/convert these values here.
-        # For now, we assume they match for the prototype.
-        if not soil_properties or 'N' not in soil_properties:
+        if not soil_properties or 'N' not in soil_properties or 'ph' not in soil_properties:
              raise HTTPException(status_code=500, detail="Could not retrieve estimated soil data.")
 
-    # --- 3. RUN XGBOOST MODEL ---
+    # 3. Run XGBoost Model
     recommendation = prediction_service.get_crop_recommendation(
-        N=soil_properties['N'],
-        P=soil_properties['P'],
-        K=soil_properties['K'],
-        ph=soil_properties['ph'],
+        N=soil_properties.get('N', 0), P=soil_properties.get('P', 0),
+        K=soil_properties.get('K', 0), ph=soil_properties.get('ph', 7.0),
         temperature=live_weather['temperature'],
         humidity=live_weather['humidity'],
         rainfall=live_weather['rainfall']
     )
     
-    # --- 4. GENERATE LLM RESPONSE ---
+    # 4. Generate LLM Response
     final_analysis = llm_service.generate_conversational_response(
         xgboost_output=recommendation,
-        farm_details=serialize_doc(farm)
+        farm_details=serialize_doc(farm),language=lang
     )
     
     return {
@@ -120,23 +119,45 @@ async def get_farm_hub_data(
         "model_recommendation": recommendation,
         "final_analysis": final_analysis
     }
+
+# --- INTERACTIVE CHAT ENDPOINTS ---
+
 @router.post("/farms/{farm_id}/chat", tags=["Farms"])
 async def handle_chat(
     farm_id: str,
-    chat_message: ChatMessage = Body(...),
+    chat_message: ChatMessage = Body(...), # <-- Uses the NEW ChatMessage model
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
-    """
-    Handles a follow-up chat message from the user for a specific farm.
-    """
+    """Handles a follow-up chat message from the user for a specific farm."""
     farm = await db["farms"].find_one({"_id": ObjectId(farm_id)})
     if farm is None:
         raise HTTPException(status_code=404, detail=f"Farm with id {farm_id} not found")
 
-    # Call our new LLM service function
+    # Call the LLM service with the new language parameter
     response_text = llm_service.generate_chat_response(
         farm_details=serialize_doc(farm),
-        user_message=chat_message.message
+        user_message=chat_message.message,
+        language=chat_message.language # <-- Passes the language to the service
     )
     
     return {"response": response_text}
+
+@router.post("/farms/{farm_id}/diagnose", tags=["Farms"])
+async def diagnose_disease(
+    farm_id: str, # We include this to know which farm has the issue
+    file: UploadFile = File(...)
+):
+    """Accepts a crop image, simulates a diagnosis, and returns an LLM analysis."""
+    # Placeholder for the real Computer Vision model
+    disease_prediction = "Tomato_Late_Blight" 
+    
+    prompt = f"A farmer has uploaded an image and our AI model has identified the disease as '{disease_prediction}'. Explain what this disease is and suggest 2-3 simple, actionable treatment steps. Keep the language very simple. Generate the response in English."
+    
+    try:
+        response = llm_service.llm.generate_content(prompt)
+        analysis = response.text
+    except Exception as e:
+        print(f"Error during disease diagnosis explanation: {e}")
+        analysis = "Our analysis model identified a potential issue, but I'm having trouble retrieving the details right now."
+
+    return {"disease_detected": disease_prediction, "analysis": analysis}

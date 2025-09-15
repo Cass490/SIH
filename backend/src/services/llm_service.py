@@ -7,7 +7,7 @@ genai.configure(api_key=GEMINI_API_KEY)
 # Initialize the model
 llm = genai.GenerativeModel('gemini-2.5-pro')
 
-def generate_conversational_response(xgboost_output: dict, farm_details: dict) -> str:
+def generate_conversational_response(xgboost_output: dict, farm_details: dict, language: str = "English") -> str:
     """
     Takes the raw XGBoost model output and farm details,
     and returns a user-friendly, conversational response from the LLM.
@@ -36,6 +36,9 @@ def generate_conversational_response(xgboost_output: dict, farm_details: dict) -
     5.  Provide two actionable, simple "Quick Tips" for the recommended crop.
     6.  End with an encouraging closing statement and ask if they need more help.
     
+    *** IMPORTANT INSTRUCTION ***
+    You MUST generate the entire response in the following language: {language}
+    
     Generate the response now.
     """
     
@@ -48,7 +51,7 @@ def generate_conversational_response(xgboost_output: dict, farm_details: dict) -
     
     # ... (existing imports and generate_conversational_response function)
 
-def generate_chat_response(farm_details: dict, user_message: str, chat_history: list = None) -> str:
+def generate_chat_response(farm_details: dict, user_message: str, language: str, chat_history: list = None) -> str:
     """
     Handles a conversational follow-up question from the user.
     """
@@ -72,6 +75,12 @@ def generate_chat_response(farm_details: dict, user_message: str, chat_history: 
     Your task is to provide a helpful, concise, and simple answer to this specific question.
     If the question is about a crop, provide actionable advice.
     If the question is unrelated to farming, politely state that you can only help with agricultural topics.
+ 
+    
+    Your task is to create a personalized and encouraging response for the farmer.
+    
+    *** IMPORTANT INSTRUCTION ***
+    You MUST generate the entire response in the following language: {language}
     
     Generate the response now.
     """

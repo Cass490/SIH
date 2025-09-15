@@ -3,8 +3,11 @@ import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Button, Box, Menu, MenuItem, IconButton } from '@mui/material';
 import AccountCircle from '@mui/icons-material/AccountCircle';
 // import logo from '../assets/logo.png'; 
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 
 function Navbar() {
+  const { t } = useTranslation(); 
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(null);
@@ -28,7 +31,9 @@ function Navbar() {
     handleClose();
     navigate('/login');
   };
-
+  const changeLanguage = (lng) => { // <-- 3. ADD THIS FUNCTION
+    i18n.changeLanguage(lng);
+  };
   return (
     <AppBar position="static">
       <Toolbar>
@@ -43,12 +48,15 @@ function Navbar() {
         </RouterLink>
         
         <Box sx={{ flexGrow: 1 }} />
+         {/* --- 4. ADD THE LANGUAGE BUTTONS HERE --- */}
+         <Button color="inherit" onClick={() => changeLanguage('en')}>English</Button>
+        <Button color="inherit" onClick={() => changeLanguage('hi')}>हिंदी</Button>
         
         {user ? (
           <>
             <Button component={RouterLink} to="/" color="inherit">My Farms</Button>
-            <Button component={RouterLink} to="/trends" color="inherit">Commodity Trends</Button>
-            
+            <Button component={RouterLink} to="/commodity-prices" color="inherit">Commodity Prices</Button>
+            <Button component={RouterLink} to="/market-trends" color="inherit">Market Trends</Button>
             <IconButton size="large" onClick={handleMenu} color="inherit" sx={{ ml: 2 }}>
               <AccountCircle />
             </IconButton>

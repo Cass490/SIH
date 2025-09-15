@@ -14,7 +14,7 @@ const dummyHubResponse = {
 
 function FarmHubPage() {
   const { farmId } = useParams(); // Gets the farm_id from the URL
-  const { t } = useTranslation();
+  const { t , i18n} = useTranslation();
   const [hubData, setHubData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -25,7 +25,8 @@ function FarmHubPage() {
       setError('');
       try {
         // Get the data from the REAL API using the farmId from the URL
-        const data = await getFarmHubData(farmId);
+        const currentLanguage = i18n.language; // Get the current language (e.g., 'en' or 'hi')
+        const data = await getFarmHubData(farmId, currentLanguage); 
 
         if (data && !data.error) {
           setHubData(data); // Set the state with the REAL analysis from the backend
@@ -44,7 +45,7 @@ function FarmHubPage() {
     if (farmId) {
       fetchHubData();
     }
-  }, [farmId]); // This effect re-runs if the user somehow navigates from one hub to another
+  },  [farmId, i18n.language]); // This effect re-runs if the user somehow navigates from one hub to another
 
   if (isLoading) {
     return (

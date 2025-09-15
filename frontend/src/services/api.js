@@ -38,7 +38,7 @@ export const geocodeAddress = (address) => apiCall('/geolocate', 'POST', address
 // --- FARM SERVICES ---
 export const saveFarm = (farmData) => apiCall('/farms', 'POST', farmData);
 export const getFarmsForUser = (userId) => apiCall(`/farms?user_id=${userId}`);
-export const getFarmHubData = (farmId) => apiCall(`/farms/${farmId}/hub`);
+export const getFarmHubData = (farmId, language) => apiCall(`/farms/${farmId}/hub?lang=${language}`);
 
 // --- AUTHENTICATION SERVICES ---
 export const registerUser = (userData) => apiCall('/auth/register', 'POST', userData);
@@ -49,5 +49,26 @@ export const loginUser = (phone, password) => apiCall('/auth/login', 'POST', { p
 // export const postDiseaseImage = (farmId, formData) => { /* Special handling for files */ };
 // ... (at the end of the file, with the other exports)
 
-// --- CHATBOT SERVICES ---
-export const postChatMessage = (farmId, message) => apiCall(`/farms/${farmId}/chat`, 'POST', { message });
+// Change the function signature
+// Change the function signature
+export const postChatMessage = (farmId, message, language) => apiCall(`/farms/${farmId}/chat`, 'POST', { message, language });
+export const uploadDiseaseImage = async (farmId, imageFile) => {
+  const formData = new FormData();
+  formData.append("file", imageFile);
+
+  try {
+      const response = await fetch(`${API_BASE_URL}/farms/${farmId}/diagnose`, {
+          method: 'POST',
+          body: formData,
+          // Note: No 'Content-Type' header. The browser sets it correctly for FormData.
+      });
+      if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || "Image analysis failed.");
+      }
+      return await response.json();
+  } catch (error) {
+      console.error("Disease diagnosis API error:", error);
+      return { error: error.message };
+  }
+};
